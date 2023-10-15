@@ -1,10 +1,12 @@
 {
-  "name": "@kyleupton/copy",
+  "name": "@kyleupton/glob-copy",
   "version": "0.0.1",
-  "description": "Stream based copy utility based on the Node.js File System API",
+  "description": "Copy utility based on Node.js streams with glob support",
   "keywords": [
     "node",
-    "copy"
+    "copy",
+    "stream",
+    "progress"
   ],
   "repository": {
     "type": "git",
@@ -29,6 +31,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.8.6",
+    "@types/progress-stream": "^2.0.2",
     "@typescript-eslint/eslint-plugin": "^6.7.5",
     "eslint": "^8.51.0",
     "eslint-config-standard-with-typescript": "^39.1.1",
@@ -39,11 +42,7 @@
     "typescript": "*"
   },
   "dependencies": {
-    "@types/progress-stream": "^2.0.2",
-    "@types/pump": "^1.1.1",
     "fast-glob": "^3.3.1",
-    "progress-stream": "^2.0.0",
-    "pump": "^3.0.0",
-    "speedometer": "^1.1.0"
+    "progress-stream": "^2.0.0"
   }
 }
