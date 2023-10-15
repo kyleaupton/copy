@@ -12,6 +12,9 @@
     "type": "git",
     "url": "https://github.com/kyleaupton/copy.git"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "main": "dist/cjs/index.js",
   "types": "dist/cjs/index.d.ts",
@@ -24,8 +27,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc --build tsconfig.esm.json && tsc --build tsconfig.cjs.json && node scripts/distPackageJson.mjs",
-    "publish": "npm publish --access public",
-    "deploy": "yarn build && yarn publish"
+    "deploy": "yarn build && npm publish --access public"
   },
   "author": "Kyle Upton <kyleaupton@gmail.com>",
   "license": "MIT",
