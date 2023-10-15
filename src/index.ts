@@ -110,6 +110,15 @@ export const copy = async ({
     await copyFile(file)
   }
 
+  if (onProgress) {
+    onProgress({
+      transferred: totalSize,
+      percentage: 100,
+      speed: 0,
+      eta: 0
+    })
+  }
+
   if (interval) {
     clearInterval(interval)
   }
