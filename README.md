@@ -1,4 +1,7 @@
+[![Node version](https://img.shields.io/npm/v/@kyleupton/glob-copy.svg?style=flat)](https://www.npmjs.com/package/@kyleupton/glob-copy)
+
 # glob-copy
+
 Copy utility based on Node.js streams with glob support
 
 # Features
