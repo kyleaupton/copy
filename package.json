@@ -1,6 +1,6 @@
 {
   "name": "@kyleupton/glob-copy",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Copy utility based on Node.js streams with glob support",
   "keywords": [
     "node",
