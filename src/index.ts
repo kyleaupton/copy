@@ -1,28 +1,16 @@
 import { createReadStream, createWriteStream } from 'fs'
 import fs from 'fs/promises'
+import { Transform } from 'stream'
+import { pipeline } from 'stream/promises'
 import path from 'path'
 import fb, { type Options, type Entry } from 'fast-glob'
-import progressStream from 'progress-stream'
 
 interface t_progress {
   percentage: number
   transferred: number
   speed: number
   eta: number
-}
-
-const ensureDir = async (dir: string, { mustExist = true }: { mustExist?: boolean } = {}): Promise<void> => {
-  try {
-    const stats = await fs.stat(dir)
-
-    if (stats.isFile()) {
-      throw Error(`${dir} is not a directory`)
-    }
-  } catch (e) {
-    if (mustExist) {
-      throw Error(`${dir} does not exist`)
-    }
-  }
+  prettyEta: string
 }
 
 export const copy = async ({
@@ -49,77 +37,85 @@ export const copy = async ({
   await fs.mkdir(destination, { recursive: true })
 
   if (!options) options = {}
-  options.cwd = source
-  options.stats = true
 
-  // @ts-ignore
-  const files = await fb(glob ?? '**/*', options) as Entry[]
+  const files = await fb(glob ?? '**/*', { ...options, cwd: source, stats: true })
   const totalSize = files.reduce((accumulator, curr) => accumulator + (curr.stats?.size ?? 0), 0)
-  let transferred = 0
-  let incrementalTransferred = 0
-  let speed = 0
+  const start = Date.now()
+  let runningSize = 0
 
-  // Setup onProgress handler
-  let interval: ReturnType<typeof setInterval> | undefined
+  let id: NodeJS.Timeout | undefined
   if (onProgress) {
-    interval = setInterval(() => {
-      const totalTransferred = transferred + incrementalTransferred
-      const remaining = totalSize - totalTransferred
+    id = setInterval(() => {
+      const percentage = (runningSize / totalSize) * 100
+      const transferred = runningSize
+      const speed = runningSize / ((Date.now() - start) / 1000)
+      const eta = (totalSize - runningSize) / speed
+      const prettyEta = humanReadableEta(eta)
 
-      onProgress({
-        percentage: (totalTransferred / totalSize) * 100,
-        transferred: totalTransferred,
-        speed,
-        eta: remaining / speed
-      })
-    }, 500)
+      onProgress({ percentage, transferred, speed, eta, prettyEta })
+    }, 1000)
   }
 
   const copyFile = async (file: Entry): Promise<void> => {
-    const fileRelPath = file.path
-    const srcAbsPath = path.join(source, fileRelPath)
-    const destAbsPath = path.join(destination, fileRelPath)
-    const destDirname = path.dirname(destAbsPath)
+    const src = path.join(source, file.path)
+    const dest = path.join(destination, file.path)
 
     // Ensure destination directory
-    await fs.mkdir(destDirname, { recursive: true })
+    await fs.mkdir(path.dirname(dest), { recursive: true })
+
+    // Create streams
+    const read = createReadStream(src)
+    const write = createWriteStream(dest)
 
     // Do the copy
-    await new Promise<void>((resolve) => {
-      const progress = progressStream({ time: 500 })
-
-      progress.on('progress', (progress) => {
-        incrementalTransferred = progress.transferred
-        speed = progress.speed
-      })
-
-      createReadStream(srcAbsPath)
-        .pipe(progress)
-        .pipe(
-          createWriteStream(destAbsPath)
-            .on('finish', () => {
-              transferred += file.stats?.size ?? 0
-              incrementalTransferred = 0
-              resolve()
-            })
-        )
-    })
+    await pipeline(
+      read,
+      new Transform({
+        transform (chunk, encoding, callback) {
+          runningSize += chunk.length
+          this.push(chunk)
+          callback()
+        }
+      }),
+      write
+    )
   }
 
   for (const file of files) {
     await copyFile(file)
   }
 
-  if (onProgress) {
-    onProgress({
-      transferred: totalSize,
-      percentage: 100,
-      speed: 0,
-      eta: 0
-    })
+  if (id) {
+    clearInterval(id)
   }
+}
 
-  if (interval) {
-    clearInterval(interval)
+const ensureDir = async (dir: string, { mustExist = true }: { mustExist?: boolean } = {}): Promise<void> => {
+  try {
+    const stats = await fs.stat(dir)
+
+    if (stats.isFile()) {
+      throw Error(`${dir} is not a directory`)
+    }
+  } catch (e) {
+    if (mustExist) {
+      throw Error(`${dir} does not exist`)
+    }
   }
+}
+
+const humanReadableEta = (eta: number): string => {
+  const h = Math.floor(eta / 3600)
+    .toString()
+    .padStart(2, '0')
+
+  const m = Math.floor((eta % 3600) / 60)
+    .toString()
+    .padStart(2, '0')
+
+  const s = Math.floor(eta % 60)
+    .toString()
+    .padStart(2, '0')
+
+  return h !== '00' ? `${h}:${m}:${s}` : `${m}:${s}`
 }
